@@ -23,11 +23,25 @@ use strict;
 use warnings;
 use Carp;
 use GD::Graph::area;
+use Getopt::Long qw(:config no_ignore_case bundling);
+use PDF::Create;
 use Data::Dumper;
 
-# Get the stats file we are gonna parse
-my $pmfile = shift;
+my $APP_VERSION = '0.1 Dev';
 
+if($#ARGV==-1){Help("Please read the README for runtime options and configuration documentation");}
+
+my ($pmfile,$pdfile,$htmlfile,$stdout,$verbose,$htmlopen,$htmlclose);
+
+## Lets grab any runtime values and insert into our variables using getopt::long
+GetOptions ( "v+" => \$verbose,
+        "V!" => sub { Version() },
+		"r=s" => \$pmfile,
+		"p=s" => \$pdfile,
+		"h=s" => \$htmlfile,
+		"s!" => \$stdout,
+		"help|?" => sub { Help() });
+		
 # declare our hash that we will store all of our data in for analysis
 my %pmdata = ();
 
@@ -151,7 +165,6 @@ my @syndata = undef;
 my $min = time();
 my $max = 0;
 my $current_sessions = 0;
-my $APP_VERSION = '0.1 Dev';
 my %stats = ();
 
 # Init some hash values for later calcumalatation
@@ -253,13 +266,54 @@ sub graph_area {
 	my $gd = $graph->plot($aref) || croak($graph->error);
 
 	# save the graph!
-	open(IMG, '>',"$gfile.png") || croak($!);
+	open(IMG, '>',"$gfile.gif") || croak($!);
 	binmode IMG;
-	print IMG $gd->png;
+	print IMG $gd->gif;
 	close IMG || croak ($!);
 	undef ($graph);
 	undef ($gd);
 }
+
+#
+# Sub to print HELP output
+#
+sub Help {
+	my $err = shift;
+	print "\nError: $err\n" if $err;
+print<<"__EOT";
+
+-= Tha Pig Doktah $APP_VERSION =-
+Copyright (C) 2010 JJ Cummings
+
+$0 -r <path to perfmonfile>
+
+	-r Specify the full path to the snort perfmon file
+	-p Enable PDF output
+	-h Enable HTML output
+	-s Enable stdout output
+	-v Enable verbose stdout output
+	-V Show version
+	-?|help Show this help
+	
+__EOT
+
+	exit(0);
+
+}
+
+#
+# Version sub
+#
+sub Version {
+print<<"__EOT";
+
+-= Tha Pig Doktah $APP_VERSION =-
+Copyright (C) 2010 JJ Cummings
+
+__EOT
+return (0);
+}
+
 
 # lets paint some pretty pictures!
 graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', 'mbps');
@@ -267,8 +321,16 @@ undef @mbpsdata;
 graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', 'syns');
 undef @syndata;
 
+if ($htmlfile) {
+	$htmlopen = "<head><title>The Pig Doktah $APP_VERSION HTML Report</title></head><pre>";
+	$htmlclose = '</pre><br><p><img src=mbps.gif></p><hr><p><img src=syns.gif></p><br> ';
+} else {
+	$htmlopen = "";
+	$htmlclose = "";
+}
+
 # Everything to stdout!
-print<<"__EOT";
+my $results = <<"__EOT";
 
 -= Tha Pig Doktah $APP_VERSION =-
 Copyright (C) 2010 JJ Cummings
@@ -295,5 +357,32 @@ Additional Info:
 	Avg Alerts/Sec: $alerts
 	Avg Current Cached Sessions: $current_sessions
 __EOT
+
+print $results if $stdout;
+
+
+# write the html as specified
+if ($htmlfile) {
+	open (FH,'>',$htmlfile) || croak ($!);
+	print FH $htmlopen;
+	print FH $results;
+	print FH $htmlclose;
+	close (FH) || croak ($!);
+}
+
+# write the pdf if we specified
+if ($pdfile) {
+	my $pdf = new PDF::Create(	'filename' => $pdfile,
+								'Author' => 'The Pig Doktah!',
+								'Title' => 'Snort Performance Report',
+								'CreationDate' => [ localtime ], );
+	my $a4 = $pdf->new_page('MediaBox' => $pdf->get_page_size('A4'));
+	my $page = $a4->new_page;
+	my $f1 = $pdf->font('BaseFont' => 'Helvetica');
+	my $toc = $pdf->new_outline('Title' => 'Title Page', 'Destination' => $page);
+	$page->printnl("$results", $f1, 10, 20, 800);
+	$pdf->close;
+	
+}
 
 __END__
