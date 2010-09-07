@@ -32,6 +32,7 @@ my $APP_VERSION = '0.1 Dev';
 if($#ARGV==-1){Help("Please read the README for runtime options and configuration documentation");}
 
 my ($pmfile,$pdfile,$htmlfile,$stdout,$verbose,$htmlopen,$htmlclose);
+my ($dumpvals);
 
 ## Lets grab any runtime values and insert into our variables using getopt::long
 GetOptions ( "v+" => \$verbose,
@@ -40,6 +41,7 @@ GetOptions ( "v+" => \$verbose,
 		"p=s" => \$pdfile,
 		"h=s" => \$htmlfile,
 		"s!" => \$stdout,
+		"d!" => \$dumpvals,
 		"help|?" => sub { Help() });
 		
 # declare our hash that we will store all of our data in for analysis
@@ -135,14 +137,14 @@ while (<FH>) {
 	$pmdata{$vals[0]}{'attrib_hosts_current'} = $vals[($idle+36)];
 	$pmdata{$vals[0]}{'attrib_reloads'} = $vals[($idle+37)];
 	$pmdata{$vals[0]}{'mbps_snort'} = $vals[($idle+38)];
-	$pmdata{$vals[0]}{'mbps_sniffing'} = $vals[($idle+39)];
-	$pmdata{$vals[0]}{'mbps_combined'} = $vals[($idle+40)];
-	$pmdata{$vals[0]}{'useconds_snort'} = $vals[($idle+41)];
-	$pmdata{$vals[0]}{'useconds_sniffing'} = $vals[($idle+42)];
-	$pmdata{$vals[0]}{'useconds_combined'} = $vals[($idle+43)];
-	$pmdata{$vals[0]}{'kpkts_snort'} = $vals[($idle+44)];
-	$pmdata{$vals[0]}{'kpkts_sniffing'} = $vals[($idle+45)];
-	$pmdata{$vals[0]}{'kpkts_combined'} = $vals[($idle+44)];
+	$pmdata{$vals[0]}{'mbps_sniffing'} = $vals[($idle+39)] if (defined $vals[($idle+39)] && $vals[($idle+39)] =~ /^[+-]?\d+(\.\d+)?$/);
+	$pmdata{$vals[0]}{'mbps_combined'} = $vals[($idle+40)] if defined $vals[($idle+40)];
+	$pmdata{$vals[0]}{'useconds_snort'} = $vals[($idle+41)] if defined $vals[($idle+41)];
+	$pmdata{$vals[0]}{'useconds_sniffing'} = $vals[($idle+42)] if defined $vals[($idle+42)];
+	$pmdata{$vals[0]}{'useconds_combined'} = $vals[($idle+43)] if defined $vals[($idle+43)];
+	$pmdata{$vals[0]}{'kpkts_snort'} = $vals[($idle+44)] if defined $vals[($idle+44)];
+	$pmdata{$vals[0]}{'kpkts_sniffing'} = $vals[($idle+45)] if defined $vals[($idle+45)];
+	$pmdata{$vals[0]}{'kpkts_combined'} = $vals[($idle+46)] if defined $vals[($idle+46)];
 	
 	undef @vals;
 	$counter = 2;
@@ -153,40 +155,16 @@ while (<FH>) {
 close(FH) || carp ($!);
 
 # Declare some more vars that we will need
-$counter = 0;
-my $mbps = 0;
-my $drops = 0;
-my $size = 0;
-my $syns = 0;
-my $synacks = 0;
-my $alerts = 0;
 my @mbpsdata = undef;
 my @syndata = undef;
 my $min = time();
 my $max = 0;
-my $current_sessions = 0;
 my %stats = ();
-
-# Init some hash values for later calcumalatation
-$stats{'mbps'}{'high'}{'val'} = 0;
-$stats{'mbps'}{'low'}{'val'} = 10000;
-$stats{'mbps'}{'high'}{'date'} = 0;
-$stats{'mbps'}{'low'}{'date'} = 0;
-$stats{'drop'}{'high'}{'val'} = 0;
-$stats{'drop'}{'low'}{'val'} = 100;
-$stats{'drop'}{'high'}{'date'} = 0;
-$stats{'drop'}{'low'}{'date'} = 0;
 
 # loop through our hash and calculate/build/store our values
 foreach (sort keys %pmdata) {
 	$counter++;
-	$mbps += $pmdata{$_}{'mbps_wire'}; 
-	$drops += $pmdata{$_}{'drops'};
-	$size += $pmdata{$_}{'pktbytes'};
-	$syns += $pmdata{$_}{'syns'};
-	$synacks += $pmdata{$_}{'synacks'};
-	$alerts += $pmdata{$_}{'alerts'};
-	
+
 	# Push some data into multidimensional arrays for graphing!
 	push @{ $syndata[0] },scalar localtime($_);
 	push @{ $syndata[1] },$pmdata{$_}{'syns'};
@@ -194,18 +172,36 @@ foreach (sort keys %pmdata) {
 	push @{ $mbpsdata[0] },scalar localtime($_);
 	push @{ $mbpsdata[1] },$pmdata{$_}{'mbps_wire'};
 	push @{ $mbpsdata[2] },$pmdata{$_}{'mbps_wire'}*($pmdata{$_}{'drops'}/100);
-	
-	$current_sessions += $pmdata{$_}{'sessions_cur'};
+
 	$min = $_ if $min > $_;
 	$max = $_ if $max < $_;
-	$stats{'mbps'}{'high'}{'val'} = $pmdata{$_}{'mbps_wire'} if $stats{'mbps'}{'high'}{'val'} <= $pmdata{$_}{'mbps_wire'};
-	$stats{'mbps'}{'high'}{'date'} = scalar localtime($_) if $stats{'mbps'}{'high'}{'val'} <= $pmdata{$_}{'mbps_wire'};
-	$stats{'mbps'}{'low'}{'val'} = $pmdata{$_}{'mbps_wire'} if $stats{'mbps'}{'low'}{'val'} >= $pmdata{$_}{'mbps_wire'};
-	$stats{'mbps'}{'low'}{'date'} = scalar localtime($_) if $stats{'mbps'}{'low'}{'val'} >= $pmdata{$_}{'mbps_wire'};
-	$stats{'drop'}{'high'}{'val'} = $pmdata{$_}{'drops'} if $stats{'drop'}{'high'}{'val'} <= $pmdata{$_}{'drops'};
-	$stats{'drop'}{'high'}{'date'} = scalar localtime($_) if $stats{'drop'}{'high'}{'val'} <= $pmdata{$_}{'mbps_wire'};
-	$stats{'drop'}{'low'}{'val'} = $pmdata{$_}{'drops'} if $stats{'drop'}{'low'}{'val'} >= $pmdata{$_}{'drops'};
-	$stats{'drop'}{'low'}{'date'} = scalar localtime($_) if $stats{'drop'}{'low'}{'val'} >= $pmdata{$_}{'drops'};
+	
+	# let's use another hash to store some of this stuff, it's much cleaner and more efficient
+	# best to loop it also so that it's more automatified
+	foreach my $k (sort keys %{$pmdata{$_}}) {
+		
+		# build our total for later manipulation
+		$stats{$k}{'avg'} = $pmdata{$_}{$k} unless defined $stats{$k}{'avg'};
+		$stats{$k}{'avg'} += $pmdata{$_}{$k};
+		$stats{$k}{'avg'} /= 2;
+		$stats{$k}{'avg'} = sprintf("%.3f",$stats{$k}{'avg'});
+		
+		# find our high value and it's date
+		$stats{$k}{'high'} = $pmdata{$_}{$k} unless defined $stats{$k}{'high'};
+		$stats{$k}{'high_date'} = scalar localtime($_) unless defined $stats{$k}{'high_date'};
+		if ($stats{$k}{'high'} <= $pmdata{$_}{$k}) {
+			$stats{$k}{'high'} = $pmdata{$_}{$k};
+			$stats{$k}{'high_date'} = scalar localtime($_);
+		}
+		
+		# find our low value and it's date
+		$stats{$k}{'low'} = $pmdata{$_}{$k} unless defined $stats{$k}{'low'};
+		$stats{$k}{'low_date'} = scalar localtime($_) unless defined $stats{$k}{'low_date'};
+		if ($stats{$k}{'low'} >= $pmdata{$_}{$k}) {
+			$stats{$k}{'low'} = $pmdata{$_}{$k};
+			$stats{$k}{'low_date'} = scalar localtime($_);
+		}
+	}
 }
 
 # calculate our foo and do some rounding!
@@ -213,27 +209,6 @@ my $seconds = $max - $min;
 $max = scalar localtime($max);
 $min = scalar localtime($min);
 $seconds = sprintf("%d days, %d hours, %d minutes and %d seconds\n",(gmtime $seconds)[7,2,1,0]);
-
-$mbps /= $counter;
-$mbps = sprintf("%.3f",$mbps);
-
-$drops /= $counter;
-$drops = sprintf("%.3f",$drops);
-
-$size /= $counter;
-$size = sprintf("%.0f", $size);
-
-$syns /= $counter;
-$syns = sprintf("%.3f",$syns);
-
-$synacks /= $counter;
-$synacks = sprintf("%.3f",$synacks);
-
-$alerts /= $counter;
-$alerts = sprintf("%.3f",$alerts);
-
-$current_sessions /= $counter;
-$current_sessions = sprintf("%.0f",$current_sessions);
 
 #
 # Sub to create area graphs
@@ -291,6 +266,7 @@ $0 -r <path to perfmonfile>
 	-p Enable PDF output
 	-h Enable HTML output
 	-s Enable stdout output
+	-d Dump all calculated hash key values to stdout!
 	-v Enable verbose stdout output
 	-V Show version
 	-?|help Show this help
@@ -315,12 +291,6 @@ return (0);
 }
 
 
-# lets paint some pretty pictures!
-graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', 'mbps');
-undef @mbpsdata;
-graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', 'syns');
-undef @syndata;
-
 if ($htmlfile) {
 	$htmlopen = "<head><title>The Pig Doktah $APP_VERSION HTML Report</title></head><pre>";
 	$htmlclose = '</pre><br><p><img src=mbps.gif></p><hr><p><img src=syns.gif></p><br> ';
@@ -341,28 +311,41 @@ Report Info:
 	Last Entry: $max
 	Time Span: $seconds
 Wirespeed:
-	High: $stats{'mbps'}{'high'}{'val'} Mbits/Sec | $stats{'mbps'}{'high'}{'date'}
-	Low: $stats{'mbps'}{'low'}{'val'} Mbits/Sec | $stats{'mbps'}{'low'}{'date'}
-	Avg: $mbps Mbits/Sec
+	High: $stats{'mbps_wire'}{'high'} Mbits/Sec | $stats{'mbps_wire'}{'high_date'}
+	Low: $stats{'mbps_wire'}{'low'} Mbits/Sec | $stats{'mbps_wire'}{'low_date'}
+	Avg: $stats{'mbps_wire'}{'avg'} Mbits/Sec
 	
 % Packet Loss:
-	High: $stats{'drop'}{'high'}{'val'}% | $stats{'drop'}{'high'}{'date'}
-	Low: $stats{'drop'}{'low'}{'val'}% | $stats{'drop'}{'low'}{'date'}
-	Avg: $drops%
+	High: $stats{'drops'}{'high'}% | $stats{'drops'}{'high_date'}
+	Low: $stats{'drops'}{'low'}% | $stats{'drops'}{'low_date'}
+	Avg: $stats{'drops'}{'avg'}%
 
 Additional Info:
-	Avg Pkt Size: $size bytes
-	Avg Syns/Sec: $syns
-	Avg SynAcks/Sec: $synacks
-	Avg Alerts/Sec: $alerts
-	Avg Current Cached Sessions: $current_sessions
+	Avg Pkt Size: $stats{'pktbytes'}{'avg'} bytes
+	Avg Syns/Sec: $stats{'syns'}{'avg'}
+	Avg SynAcks/Sec: $stats{'synacks'}{'avg'}
+	Avg Alerts/Sec: $stats{'alerts'}{'avg'}
+	Avg Current Cached Sessions: $stats{'sessions_cur'}{'avg'}
 __EOT
 
-print $results if $stdout;
-
+# add more output if flagged to do so
+if ($dumpvals) {
+	$results .= "\nRaw Values:\n";
+	foreach (sort keys %stats) {
+		foreach my $k (sort keys %{$stats{$_}}) {
+			$results .= "\t $_ $k = $stats{$_}{$k}\n";
+				
+		}
+	}
+}
 
 # write the html as specified
 if ($htmlfile) {
+	
+	# lets paint some pretty pictures!
+	graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', 'mbps');
+	graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', 'syns');
+	
 	open (FH,'>',$htmlfile) || croak ($!);
 	print FH $htmlopen;
 	print FH $results;
@@ -372,6 +355,11 @@ if ($htmlfile) {
 
 # write the pdf if we specified
 if ($pdfile) {
+	
+	# lets paint some pretty pictures for inclusion in the file!
+	graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', 'mbps');
+	graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', 'syns');
+
 	my $pdf = new PDF::Create(	'filename' => $pdfile,
 								'Author' => 'The Pig Doktah!',
 								'Title' => 'Snort Performance Report',
@@ -385,4 +373,9 @@ if ($pdfile) {
 	
 }
 
+undef @mbpsdata;
+undef @syndata;
+
+print $results if $stdout;
+	
 __END__
