@@ -32,12 +32,13 @@ my $APP_VERSION = '0.1 Dev';
 if($#ARGV==-1){Help("Please read the README for runtime options and configuration documentation");}
 
 my ($pmfile,$pdfile,$htmlfile,$stdout,$verbose,$htmlopen,$htmlclose);
-my ($dumpvals);
+my ($dumpvals,$filepath);
 
 ## Lets grab any runtime values and insert into our variables using getopt::long
 GetOptions ( "v+" => \$verbose,
         "V!" => sub { Version() },
 		"r=s" => \$pmfile,
+		"w=s" => \$filepath,
 		"p=s" => \$pdfile,
 		"h=s" => \$htmlfile,
 		"s!" => \$stdout,
@@ -214,7 +215,7 @@ $seconds = sprintf("%d days, %d hours, %d minutes and %d seconds\n",(gmtime $sec
 # Sub to create area graphs
 #
 sub graph_area {
-	my ($aref, $title, $legend, $gfile) = @_;
+	my ($aref, $title, $legend, $gfile,$ymax) = @_;
 	my @lvals = split(/,/,$legend);
 	
 	# creat graph object
@@ -233,7 +234,8 @@ sub graph_area {
 		'x_label_skip' => (sprintf("%.0f",($counter/3))),
 		'x_labels_vertical' => 1,
 		'x_label_position' => .5, 
-		'y_label_position' => .5, 
+		'y_label_position' => .5,
+		'y_max_value' => $ymax, 
 	) or croak($graph->error);
 	
 	# build the graph legend
@@ -264,6 +266,7 @@ $0 -r <path to perfmonfile>
 
 	-r Specify the full path to the snort perfmon file
 	-p Enable PDF output
+	-w Writefile path (where we write the output files to!)
 	-h Enable HTML output
 	-s Enable stdout output
 	-d Dump all calculated hash key values to stdout!
@@ -339,14 +342,17 @@ if ($dumpvals) {
 	}
 }
 
+Help("You must specify a write file path -w to write the html contents!") unless $filepath;
+$filepath .= "/" unless $filepath =~ /\/$/;
+
 # write the html as specified
 if ($htmlfile) {
 	
 	# lets paint some pretty pictures!
-	graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', 'mbps');
-	graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', 'syns');
+	graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', $filepath.'mbps', 5);
+	graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', $filepath.'syns', 1);
 	
-	open (FH,'>',$htmlfile) || croak ($!);
+	open (FH,'>',$filepath.$htmlfile) || croak ($!);
 	print FH $htmlopen;
 	print FH $results;
 	print FH $htmlclose;
@@ -357,8 +363,8 @@ if ($htmlfile) {
 if ($pdfile) {
 	
 	# lets paint some pretty pictures for inclusion in the file!
-	graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', 'mbps');
-	graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', 'syns');
+	graph_area(\@mbpsdata,'Mbps vs Packet Loss', 'Mbps,Packet Loss', 'mbps', 5);
+	graph_area(\@syndata,'SYNS vs SYNACKS (per second)', 'Syns/Sec,Synacks/Sec', 'syns', 1);
 
 	my $pdf = new PDF::Create(	'filename' => $pdfile,
 								'Author' => 'The Pig Doktah!',
