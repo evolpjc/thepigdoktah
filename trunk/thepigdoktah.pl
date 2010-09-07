@@ -249,9 +249,9 @@ sub graph_area {
 	my $gd = $graph->plot($aref) || croak($graph->error);
 
 	# save the graph!
-	open(IMG, '>',"$gfile.gif") || croak($!);
+	open(IMG, '>',"$gfile.png") || croak($!);
 	binmode IMG;
-	print IMG $gd->gif;
+	print IMG $gd->png;
 	close IMG || croak ($!);
 	undef ($graph);
 	undef ($gd);
@@ -303,7 +303,7 @@ return (0);
 
 if ($htmlfile) {
 	$htmlopen = "<head><title>The Pig Doktah $APP_VERSION HTML Report</title></head><pre>";
-	$htmlclose = '</pre><br><p><img src=mbps.gif></p><hr><p><img src=syns.gif></p><br> ';
+	$htmlclose = '</pre><br><p><img src=mbps.png></p><hr><p><img src=syns.png></p><br> ';
 } else {
 	$htmlopen = "";
 	$htmlclose = "";
