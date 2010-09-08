@@ -49,8 +49,8 @@ GetOptions ( "v+" => \$verbose,
 # declare our hash that we will store all of our data in for analysis
 my %pmdata = ();
 
-$graphtime *= 60;
-$graphtime = (time() - $graphtime);
+$graphtime *= 60 if $graphtime;
+$graphtime = (time() - $graphtime) if $graphtime;
 
 # Wet the bed if it's not a real file!
 croak ("$pmfile is not a regular file!") unless -f $pmfile;
@@ -171,7 +171,7 @@ foreach (sort keys %pmdata) {
 	
 
 	# Push some data into multidimensional arrays for graphing!
-	if ($_ > $graphtime) {
+	if ($graphtime && $_ > $graphtime) {
 		$counter++;
 		push @{ $syndata[0] },scalar localtime($_);
 		push @{ $syndata[1] },$pmdata{$_}{'syns'};
