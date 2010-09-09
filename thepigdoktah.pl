@@ -105,6 +105,7 @@ while (<FH>) {
 		$pmdata{$vals[0]}{'cpu'.$counter.'_idle'} = $vals[$idle];
 		$counter++;
 	}
+	# skipped +1 since it's duplicated mbps_wire
 	$pmdata{$vals[0]}{'mbits_ipfrag'} = $vals[($idle+2)];
 	$pmdata{$vals[0]}{'mbits_ipreass'} = $vals[($idle+3)];
 	$pmdata{$vals[0]}{'mbits_tcprebuilt'} = $vals[($idle+4)];
@@ -162,6 +163,7 @@ close(FH) || carp ($!);
 # Declare some more vars that we will need
 my @mbpsdata = undef;
 my @syndata = undef;
+my @cpudata = undef;
 my $min = time();
 my $max = 0;
 my %stats = ();
@@ -178,7 +180,7 @@ foreach (sort keys %pmdata) {
 		push @{ $syndata[2] },$pmdata{$_}{'synacks'};
 		push @{ $mbpsdata[0] },scalar localtime($_);
 		push @{ $mbpsdata[1] },$pmdata{$_}{'mbps_wire'};
-		push @{ $mbpsdata[2] },$pmdata{$_}{'mbps_wire'}*($pmdata{$_}{'drops'}/100);
+		push @{ $mbpsdata[2] },$pmdata{$_}{'mbps_wire'}*($pmdata{$_}{'pkts_dropped_percentage'}/100);
 	}
 	$min = $_ if $min > $_;
 	$max = $_ if $max < $_;
@@ -326,9 +328,9 @@ Wirespeed:
 	Avg: $stats{'mbps_wire'}{'avg'} Mbits/Sec
 	
 % Packet Loss:
-	High: $stats{'drops'}{'high'}% | $stats{'drops'}{'high_date'}
-	Low: $stats{'drops'}{'low'}% | $stats{'drops'}{'low_date'}
-	Avg: $stats{'drops'}{'avg'}%
+	High: $stats{'pkts_dropped_percentage'}{'high'}% | $stats{'pkts_dropped_percentage'}{'high_date'}
+	Low: $stats{'pkts_dropped_percentage'}{'low'}% | $stats{'pkts_dropped_percentage'}{'low_date'}
+	Avg: $stats{'pkts_dropped_percentage'}{'avg'}%
 
 Additional Info:
 	Avg Pkt Size: $stats{'pktbytes'}{'avg'} bytes
