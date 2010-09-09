@@ -66,8 +66,8 @@ open (FH,"<",$pmfile) || croak ($!);
 while (<FH>) {
 	next if $_ =~ /^#/; 
 	my @vals=split(/,/,$_);
-	$pmdata{$vals[0]}{'drops'} = $vals[1];
-	$pmdata{$vals[0]}{'mbps_wire'} = $vals[2];
+	$pmdata{$vals[0]}{'drop_rate'} = $vals[1];
+	$pmdata{$vals[0]}{'mbits_wire'} = $vals[2];
 	$pmdata{$vals[0]}{'alerts'} = $vals[3];
 	$pmdata{$vals[0]}{'kpkts_wire'} = $vals[4];
 	$pmdata{$vals[0]}{'pktbytes'} = $vals[5];
@@ -179,8 +179,8 @@ foreach (sort keys %pmdata) {
 		push @{ $syndata[1] },$pmdata{$_}{'syns'};
 		push @{ $syndata[2] },$pmdata{$_}{'synacks'};
 		push @{ $mbpsdata[0] },scalar localtime($_);
-		push @{ $mbpsdata[1] },$pmdata{$_}{'mbps_wire'};
-		push @{ $mbpsdata[2] },$pmdata{$_}{'mbps_wire'}*($pmdata{$_}{'pkts_dropped_percentage'}/100);
+		push @{ $mbpsdata[1] },$pmdata{$_}{'mbits_wire'};
+		push @{ $mbpsdata[2] },$pmdata{$_}{'mbits_wire'}*($pmdata{$_}{'pkts_dropped_percentage'}/100);
 	}
 	$min = $_ if $min > $_;
 	$max = $_ if $max < $_;
@@ -323,9 +323,9 @@ Report Info:
 	Last Entry: $max
 	Time Span: $seconds
 Wirespeed:
-	High: $stats{'mbps_wire'}{'high'} Mbits/Sec | $stats{'mbps_wire'}{'high_date'}
-	Low: $stats{'mbps_wire'}{'low'} Mbits/Sec | $stats{'mbps_wire'}{'low_date'}
-	Avg: $stats{'mbps_wire'}{'avg'} Mbits/Sec
+	High: $stats{'mbits_wire'}{'high'} Mbits/Sec | $stats{'mbits_wire'}{'high_date'}
+	Low: $stats{'mbits_wire'}{'low'} Mbits/Sec | $stats{'mbits_wire'}{'low_date'}
+	Avg: $stats{'mbits_wire'}{'avg'} Mbits/Sec
 	
 % Packet Loss:
 	High: $stats{'pkts_dropped_percentage'}{'high'}% | $stats{'pkts_dropped_percentage'}{'high_date'}
